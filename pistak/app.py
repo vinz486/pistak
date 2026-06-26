@@ -182,7 +182,7 @@ class PistakApp(App):
         
         with Horizontal():
             # Sidebar for settings
-            with Vertical(id="sidebar"):
+            with VerticalScroll(id="sidebar"):
                 yield Label("⚙️ Configuration", classes="section-title")
                 
                 yield Label("Target Device", classes="setting-item")
