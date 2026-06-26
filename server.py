@@ -28,7 +28,12 @@ async def load_model():
         # Using openvino_genai LLMPipeline
         import os
         os.makedirs("models/cache", exist_ok=True)
-        pipeline = ov_genai.LLMPipeline(args.model_path, args.device, CACHE_DIR="models/cache", MAX_PROMPT_LEN=4096)
+        
+        properties = {"CACHE_DIR": "models/cache"}
+        if "NPU" in args.device:
+            properties["MAX_PROMPT_LEN"] = 4096
+            
+        pipeline = ov_genai.LLMPipeline(args.model_path, args.device, **properties)
         print("Model loaded successfully!")
     except Exception as e:
         print(f"Error loading model: {e}")
