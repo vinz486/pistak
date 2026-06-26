@@ -86,7 +86,8 @@ class PistakApp(App):
     }
     
     #download_monitor {
-        height: 12;
+        height: auto;
+        max-height: 10;
         dock: bottom;
         background: $surface;
         border-top: solid $accent;
@@ -94,7 +95,9 @@ class PistakApp(App):
     }
     
     #log_download {
-        height: 1fr;
+        height: auto;
+        min-height: 2;
+        max-height: 6;
     }
     
     RichLog {
@@ -132,20 +135,20 @@ class PistakApp(App):
 
     /* Model List Styling */
     .model-row {
-        height: 4;
-        padding: 0 1;
+        height: auto;
+        padding: 1 1;
         margin-bottom: 1;
         border-bottom: solid $primary-background;
     }
     
     .model-info-col {
         width: 1fr;
-        height: 100%;
+        height: auto;
     }
     
     .model-btn-col {
         width: 20;
-        height: 100%;
+        height: auto;
         align: right middle;
     }
     
