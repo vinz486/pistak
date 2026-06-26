@@ -317,19 +317,30 @@ class PistakApp(App):
                 with TabbedContent(initial="tab-hw"):
                     
                     with TabPane("💻 Hardware", id="tab-hw"):
-                        yield Label("Hardware Analysis", classes="section-title")
+                        yield Label("Hardware Overview", classes="section-title")
                         
                         yield Label(f"Rating: {hw_tier} (Score: {hw_score}/10)", classes="hw-score")
                         
-                        yield Label(f"[bold]Processor (CPU):[/bold] {hw['cpu_name']}", classes="hw-info")
-                        yield Label(f"[bold]Total RAM Installed:[/bold] {hw['ram_gb']:.1f} GB", classes="hw-info")
-                        yield Label(f"[bold]Operating System:[/bold] {hw['os_name']}", classes="hw-info")
-                        yield Label(f"[bold]OpenVINO Accelerators:[/bold] {', '.join(available_devices)}", classes="hw-info")
+                        # Compact hardware display
+                        yield Label(f"🖥️ [bold]CPU:[/bold] {hw['cpu_name']}  |  🐏 [bold]RAM:[/bold] {hw['ram_gb']:.1f} GB  |  💽 [bold]OS:[/bold] {hw['os_name']}", classes="hw-info")
+                        yield Label(f"⚡ [bold]OpenVINO Accelerators:[/bold] {', '.join(available_devices)}", classes="hw-info")
                         
                         yield Label("\n[bold]Accelerator Usage Guide:[/bold]")
                         yield Label("• [bold green]NPU[/bold green]: Perfect for models up to 4B parameters. High battery efficiency, ideal for background tasks.")
                         yield Label("• [bold blue]GPU[/bold blue]: Highest performance, excellent for 7B-8B models if you have at least 16GB RAM.")
                         yield Label("• [bold magenta]CPU[/bold magenta]: Fallback option, universal but generally slower.")
+
+                    with TabPane("📥 Models", id="tab-models"):
+                        yield Label("Suggested Models Ranked for Your PC", classes="section-title")
+                        yield Label("💡 [italic]Click a row! If the model is downloaded, you'll be taken to the Server tab to start it. Otherwise, you can download it.[/italic]", classes="setting-item")
+                        
+                        yield DataTable(id="models_table")
+                        
+                        yield Horizontal(
+                            Input(placeholder="Select a model from the table to download or paste Repo ID...", id="input_hf_repo"),
+                            Button("Download", id="btn_download", variant="primary")
+                        )
+                        yield RichLog(id="log_download")
 
                     with TabPane("🚀 Server", id="tab-server"):
                         yield Label("OpenAI Compatible Server Control", classes="section-title")
@@ -337,17 +348,6 @@ class PistakApp(App):
                             yield Button("Start Server", id="btn_toggle_server", variant="success")
                             yield Label("  Status: Stopped", id="lbl_server_status")
                         yield RichLog(id="log_server", highlight=True, markup=True)
-                        
-                    with TabPane("📥 Models", id="tab-models"):
-                        yield Label("Suggested Models Ranked for Your PC", classes="section-title")
-                        
-                        yield DataTable(id="models_table")
-                        
-                        yield Horizontal(
-                            Input(placeholder="Select a model from the table or paste Repo ID...", id="input_hf_repo"),
-                            Button("Download", id="btn_download", variant="primary")
-                        )
-                        yield RichLog(id="log_download")
                         
                     with TabPane("📊 Statistics", id="tab-stats"):
                         with Vertical(id="stat-container"):
@@ -364,14 +364,21 @@ class PistakApp(App):
         hw = self.get_hardware_info()
         table = self.query_one("#models_table", DataTable)
         table.cursor_type = "row"
-        table.add_columns("Model", "Intelligence", "Min RAM", "Rating (Current HW)")
+        table.add_columns("Model", "Intelligence", "Min RAM", "Best For", "Rating (Current HW)", "Local Status")
+        
+        downloaded_models = [m[0] for m in self.get_local_models()]
         
         for m in MODEL_CATALOG:
+            model_dir_name = m["id"].split("/")[-1]
+            local_status = "✅ Downloaded" if model_dir_name in downloaded_models else "☁️ Cloud"
+            
             table.add_row(
                 m["name"], 
                 m["params"], 
                 f"{m['ram_gb']} GB", 
+                ", ".join(m["best_for"]),
                 m["stars_str"],
+                local_status,
                 key=m["id"]
             )
 
@@ -379,10 +386,40 @@ class PistakApp(App):
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         repo_id = event.row_key.value
-        if repo_id:
-            inp = self.query_one("#input_hf_repo", Input)
-            inp.value = repo_id
-            self.notify(f"Selected {repo_id}. Click Download when ready.")
+        if not repo_id:
+            return
+            
+        model_name = repo_id.split("/")[-1]
+        local_path = os.path.join(MODELS_DIR, model_name)
+        
+        if os.path.exists(local_path):
+            # Already downloaded! Select it and switch to server tab
+            self.settings["model_path"] = local_path
+            
+            # Try to automatically update sidebar select
+            try:
+                model_select = self.query_one("#select_model", Select)
+                if local_path in [m[1] for m in self.get_local_models()]:
+                    model_select.value = local_path
+            except Exception:
+                pass
+                
+            # Switch to Server tab
+            try:
+                tabs = self.query_one(TabbedContent)
+                tabs.active = "tab-server"
+                self.notify(f"Selected {model_name}. Click 'Start Server' to run it!", title="Ready to Run")
+            except Exception:
+                pass
+                
+        else:
+            # Not downloaded, prep for download
+            try:
+                inp = self.query_one("#input_hf_repo", Input)
+                inp.value = repo_id
+                self.notify(f"{model_name} needs to be downloaded. Click 'Download' below.", severity="warning")
+            except Exception:
+                pass
 
     def update_stats(self):
         self.cpu_percent = psutil.cpu_percent()
@@ -531,8 +568,34 @@ class PistakApp(App):
             snapshot_download(repo_id=repo_id, local_dir=target_dir)
             self.call_from_thread(self.write_download_log, f"[bold green]Download completed![/] Saved to {target_dir}")
             self.call_from_thread(self.refresh_models)
+            
+            # Update data table local status immediately
+            self.call_from_thread(self.refresh_table_status)
         except Exception as e:
             self.call_from_thread(self.write_download_log, f"[bold red]Download failed:[/] {e}")
+
+    def refresh_table_status(self):
+        try:
+            table = self.query_one("#models_table", DataTable)
+            table.clear()
+            hw = self.get_hardware_info()
+            self.rate_and_sort_models(hw)
+            downloaded_models = [m[0] for m in self.get_local_models()]
+            
+            for m in MODEL_CATALOG:
+                model_dir_name = m["id"].split("/")[-1]
+                local_status = "✅ Downloaded" if model_dir_name in downloaded_models else "☁️ Cloud"
+                table.add_row(
+                    m["name"], 
+                    m["params"], 
+                    f"{m['ram_gb']} GB", 
+                    ", ".join(m["best_for"]),
+                    m["stars_str"],
+                    local_status,
+                    key=m["id"]
+                )
+        except Exception:
+            pass
 
     def write_download_log(self, text: str):
         try:
