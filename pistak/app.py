@@ -105,8 +105,8 @@ class PistakApp(App):
     }
 
     #stat-container {
-        align: center middle;
-        height: 100%;
+        padding: 2 4;
+        height: auto;
     }
 
     .stat-label {
