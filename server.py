@@ -81,7 +81,7 @@ def main():
     parser = argparse.ArgumentParser(description="Pistak Inference Server")
     parser.add_argument("--model-path", type=str, required=True, help="Path to the OpenVINO model")
     parser.add_argument("--device", type=str, default="CPU", help="Target device (CPU, GPU, NPU)")
-    parser.add_argument("--port", type=int, default=8000, help="Server port")
+    parser.add_argument("--port", type=int, default=1234, help="Server port")
     args = parser.parse_args()
 
     app.state.args = args

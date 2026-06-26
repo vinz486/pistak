@@ -20,15 +20,14 @@ pip install -r requirements.txt
 echo "Installing PyInstaller..."
 pip install pyinstaller
 
-echo "Cleaning up old builds..."
-rm -rf build dist pistak.spec
+echo "🧹 Cleaning up previous builds..."
+rm -rf build/ dist/
 
-echo "Building executable with PyInstaller..."
-# We use --hidden-import to ensure dynamically loaded modules or 
-# modules imported via sys.argv tricks are included.
-pyinstaller --name pistak \
-            --onefile \
-            --clean \
+echo "📦 Packaging Pistak application..."
+pyinstaller \
+    --name "pistak" \
+    --clean \
+    --onefile \
             --collect-all "textual" \
             --collect-all "openvino" \
             --collect-all "openvino_genai" \

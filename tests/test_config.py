@@ -9,7 +9,7 @@ def test_config_manager_defaults(tmp_path):
     cm = ConfigManager(config_file=str(config_file), models_dir=str(models_dir))
     
     assert cm.settings["device"] == "CPU"
-    assert cm.settings["port"] == "8000"
+    assert cm.settings["port"] == "1234"
 
 def test_config_save_and_load(tmp_path):
     config_file = tmp_path / "settings.json"

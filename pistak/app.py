@@ -382,7 +382,7 @@ class PistakApp(App):
         lbl = self.query_one("#lbl_server_status", Label)
         log = self.query_one("#log_server", RichLog)
         
-        port = self.settings.get("port", "8000")
+        port = self.settings.get("port", "1234")
         device = self.settings.get("device", "CPU")
         model = self.settings.get("model_path")
         

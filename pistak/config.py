@@ -8,7 +8,7 @@ class ConfigManager:
         self.settings = {
             "model_path": "",
             "device": "CPU",
-            "port": "8000",
+            "port": "1234",
             "hf_token": ""
         }
 
