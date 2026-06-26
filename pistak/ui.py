@@ -15,6 +15,7 @@ class ModelRow(Vertical):
     """
     def __init__(self, model_info, is_downloaded, **kwargs):
         super().__init__(**kwargs)
+        self.styles.height = "auto"
         self.model_info = model_info
         self.is_downloaded = is_downloaded
 
