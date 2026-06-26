@@ -85,7 +85,7 @@ class ModelRow(Container):
                 yield Label(f"📊 Rating: {self.model_info['stars_str']}")
             
             with Vertical(classes="model-actions"):
-                safe_id = self.model_info['id'].replace('/', '___')
+                safe_id = self.model_info['id'].replace('/', '___').replace('.', '_dot_')
                 if self.is_downloaded:
                     yield Label("[bold green]✅ Downloaded[/bold green]")
                     yield Button("Select Model", id=f"btn_start_{safe_id}", variant="success")
@@ -459,7 +459,7 @@ class PistakApp(App):
             
         elif event.button.id and event.button.id.startswith("btn_start_"):
             # Handle selecting a downloaded model
-            repo_id = event.button.id.replace("btn_start_", "").replace("___", "/")
+            repo_id = event.button.id.replace("btn_start_", "").replace("___", "/").replace("_dot_", ".")
             model_name = repo_id.split("/")[-1]
             local_path = os.path.join(MODELS_DIR, model_name)
             
@@ -480,7 +480,7 @@ class PistakApp(App):
                 
         elif event.button.id and event.button.id.startswith("btn_dl_"):
             # Handle download button
-            repo_id = event.button.id.replace("btn_dl_", "").replace("___", "/")
+            repo_id = event.button.id.replace("btn_dl_", "").replace("___", "/").replace("_dot_", ".")
             self.download_model(repo_id)
 
     def action_toggle_server(self) -> None:
