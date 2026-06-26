@@ -87,10 +87,10 @@ class ModelRow(Container):
             with Vertical(classes="model-actions"):
                 safe_id = self.model_info['id'].replace('/', '___')
                 if self.is_downloaded:
-                    yield Label("✅ Downloaded", style="bold green")
+                    yield Label("[bold green]✅ Downloaded[/bold green]")
                     yield Button("Select Model", id=f"btn_start_{safe_id}", variant="success")
                 else:
-                    yield Label("☁️ Cloud", style="bold blue")
+                    yield Label("[bold blue]☁️ Cloud[/bold blue]")
                     btn = Button("Download", id=f"btn_dl_{safe_id}", variant="primary")
                     if "Incompatible" in self.model_info['stars_str']:
                         btn.disabled = True
