@@ -238,7 +238,8 @@ class PistakApp(App):
     settings = {
         "model_path": "",
         "device": "CPU",
-        "port": "8000"
+        "port": "8000",
+        "hf_token": ""
     }
     
     server_running = reactive(False)
@@ -381,6 +382,16 @@ class PistakApp(App):
                 yield Input(value=self.settings["port"], id="input_port")
                 
                 yield Button("Save Configuration", id="btn_save", variant="primary")
+                
+                yield Label("🔑 Hugging Face", classes="section-title")
+                yield Label("Token for gated models (like Llama 3). Get it at:\nhuggingface.co/settings/tokens", classes="setting-item")
+                hf_token_val = self.settings.get("hf_token", "")
+                yield Input(value=hf_token_val, placeholder="hf_...", password=True, id="input_hf_token", classes="setting-item")
+                login_btn = Button("Login", id="btn_hf_login", variant="primary")
+                if hf_token_val:
+                    login_btn.label = "Logged In ✅"
+                    login_btn.variant = "success"
+                yield login_btn
 
             # Main content area
             with Container(id="main-content"):
@@ -475,11 +486,28 @@ class PistakApp(App):
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "input_port":
             self.settings["port"] = event.value
+        elif event.input.id == "input_hf_token":
+            self.settings["hf_token"] = event.value
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn_save":
             self.save_settings()
             self.notify("Configuration saved transparently!")
+            
+        elif event.button.id == "btn_hf_login":
+            token = self.settings.get("hf_token", "").strip()
+            if not token:
+                self.notify("Please enter a valid token!", severity="error")
+                return
+            try:
+                from huggingface_hub import login
+                login(token=token)
+                self.save_settings()
+                self.notify("Successfully logged in to Hugging Face!", title="Login Success", severity="information")
+                event.button.label = "Logged In ✅"
+                event.button.variant = "success"
+            except Exception as e:
+                self.notify(f"Login failed: {e}", severity="error")
             
         elif event.button.id == "btn_toggle_server":
             self.action_toggle_server()
