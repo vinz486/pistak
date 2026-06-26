@@ -77,8 +77,7 @@ class PistakApp(App):
     }
     
     #btn_save {
-        margin-top: 2;
-        width: 1fr;
+        margin: 2 auto 1 auto;
     }
     
     #main-content {
