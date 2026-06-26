@@ -143,10 +143,9 @@ class PistakApp(App):
     /* Model List Styling */
     .model-row {
         height: auto;
-        padding: 1 1;
+        padding: 1 3 1 1;
         margin-bottom: 1;
         border-bottom: solid $primary-background;
-        overflow: hidden;
     }
     
     .model-info-col {
@@ -156,14 +155,14 @@ class PistakApp(App):
     }
     
     .model-btn-col {
-        width: 20;
+        width: 22;
         height: auto;
-        align: right middle;
+        align: center middle;
     }
     
     .model-row Button {
         margin: 0;
-        min-width: 16;
+        width: 18;
     }
     
     .model-title {
