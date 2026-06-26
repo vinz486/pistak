@@ -9,7 +9,7 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
-from textual.widgets import Header, Footer, Button, Select, Input, Label, RichLog, TabbedContent, TabPane, ProgressBar, RadioSet, RadioButton
+from textual.widgets import Header, Footer, Button, Select, Input, Label, RichLog, TabbedContent, TabPane, ProgressBar, RadioSet, RadioButton, Markdown
 from textual.reactive import reactive
 from textual import work
 
@@ -32,6 +32,34 @@ if "--run-server" in sys.argv:
 
 CONFIG_FILE = "settings.json"
 MODELS_DIR = "models"
+
+HELP_MD = """
+# Troubleshooting & Guides
+
+## 1. NPU Not Showing Up?
+If your Intel NPU (e.g., on Meteor/Lunar Lake) isn't appearing in the hardware list, it's likely a missing driver or permission issue on Linux.
+
+**Step 1: Check Permissions**
+Your user must be in the `render` group to access AI accelerators. Run this in your terminal:
+```bash
+sudo usermod -aG render $USER
+```
+*(Reboot your PC afterward for it to take effect).*
+
+**Step 2: Install Intel NPU Drivers**
+Ubuntu does not pre-install the Intel Level Zero NPU drivers. You can install them by running:
+```bash
+cd /tmp
+wget https://github.com/intel/linux-npu-driver/releases/download/v1.33.0/linux-npu-driver-v1.33.0.20260529-26625960453-ubuntu2404.tar.gz
+tar -xzf linux-npu-driver-*.tar.gz
+sudo apt install -y ./ubuntu2404/*.deb
+```
+
+## 2. Performance Tips
+* Models with **INT4** quantization use vastly less RAM and are highly optimized for OpenVINO.
+* When running 7B+ models on a **GPU**, ensure you have at least 16GB of system RAM since the iGPU shares system memory.
+* **CPU** fallback is universally compatible but will drain battery faster and run slower.
+"""
 
 MODEL_CATALOG = [
     {
@@ -400,6 +428,9 @@ class PistakApp(App):
                             yield ProgressBar(id="pb_cpu", total=100, show_eta=False)
                             yield Label("RAM Usage:", classes="stat-label")
                             yield ProgressBar(id="pb_ram", total=100, show_eta=False)
+                            
+                    with TabPane("🆘 Help", id="tab-help"):
+                        yield Markdown(HELP_MD)
 
         yield Footer()
 
