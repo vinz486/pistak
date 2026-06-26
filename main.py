@@ -598,6 +598,13 @@ class PistakApp(App):
         except Exception:
             pass
 
+    def write_download_log(self, text: str):
+        try:
+            log = self.query_one("#log_download", RichLog)
+            log.write(text)
+        except Exception:
+            pass
+
     @work(thread=True)
     def download_model(self, repo_id: str):
         if not snapshot_download:
