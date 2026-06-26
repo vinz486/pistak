@@ -423,7 +423,7 @@ class PistakApp(App):
             self.server_running = True
             btn.label = "Stop Server"
             btn.variant = "error"
-            lbl.update("  Status: [bold green]Running[/]")
+            lbl.update("  Status: [bold yellow]Starting (Loading Model...)[/]")
             
             # Start a thread to read logs
             threading.Thread(target=self.read_server_logs, daemon=True).start()
@@ -466,6 +466,11 @@ class PistakApp(App):
         try:
             log = self.query_one("#log_server", RichLog)
             log.write(text)
+            
+            # Update status to Running when uvicorn is ready
+            if "Application startup complete." in text or "Uvicorn running on" in text:
+                lbl = self.query_one("#lbl_server_status", Label)
+                lbl.update("  Status: [bold green]Ready & Running[/]")
         except Exception:
             pass
 
