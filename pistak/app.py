@@ -59,7 +59,7 @@ class PistakApp(App):
         dock: left;
         padding: 1 2;
         background: $panel;
-        border-right: vkey $background;
+        border-right: solid $primary-background;
     }
     
     .section-title {
@@ -78,7 +78,7 @@ class PistakApp(App):
     
     #btn_save {
         margin-top: 2;
-        width: 100%;
+        width: 1fr;
     }
     
     #main-content {
@@ -146,11 +146,13 @@ class PistakApp(App):
         padding: 1 1;
         margin-bottom: 1;
         border-bottom: solid $primary-background;
+        overflow: hidden;
     }
     
     .model-info-col {
         width: 1fr;
         height: auto;
+        overflow: hidden;
     }
     
     .model-btn-col {
