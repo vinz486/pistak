@@ -170,6 +170,18 @@ class PistakApp(App):
         padding: 1 2;
     }
     
+    #download_monitor {
+        height: 12;
+        dock: bottom;
+        background: $surface;
+        border-top: solid $accent;
+        padding: 1;
+    }
+    
+    #log_download {
+        height: 1fr;
+    }
+    
     RichLog {
         background: $boost;
         border: solid $accent;
@@ -419,7 +431,10 @@ class PistakApp(App):
                             # Populated in on_mount
                             pass
                             
-                        yield RichLog(id="log_download")
+                        with Vertical(id="download_monitor"):
+                            yield Label("Download Status: Ready", id="lbl_download_status", classes="section-title")
+                            yield ProgressBar(id="pb_download", total=100, show_eta=False)
+                            yield RichLog(id="log_download")
 
                     with TabPane("🚀 Server", id="tab-server"):
                         yield Label("OpenAI Compatible Server Control", classes="section-title")
@@ -643,6 +658,19 @@ class PistakApp(App):
         except Exception:
             pass
 
+    def update_download_status(self, text: str):
+        try:
+            lbl = self.query_one("#lbl_download_status", Label)
+            lbl.update(f"[bold blue]Downloading:[/] {text}")
+            
+            import re
+            m = re.search(r'(\d+)%\|', text)
+            if m:
+                pb = self.query_one("#pb_download", ProgressBar)
+                pb.update(progress=int(m.group(1)))
+        except Exception:
+            pass
+
     @work(thread=True)
     def download_model(self, repo_id: str):
         if not snapshot_download:
@@ -653,15 +681,47 @@ class PistakApp(App):
         model_name = repo_id.split("/")[-1]
         target_dir = os.path.join(MODELS_DIR, model_name)
         
+        # Setup stderr capture for tqdm
+        import sys, re
+        old_stderr = sys.stderr
+        
+        class TqdmCapture:
+            def __init__(self, app):
+                self.app = app
+                self.buffer = ""
+            def write(self, s):
+                clean_s = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', s)
+                self.buffer += clean_s
+                if '\r' in self.buffer or '\n' in self.buffer:
+                    lines = self.buffer.replace('\r', '\n').split('\n')
+                    for line in lines[:-1]:
+                        text = line.strip()
+                        if text:
+                            self.app.call_from_thread(self.app.update_download_status, text)
+                            if "100%" in text or "Download" in text:
+                                self.app.call_from_thread(self.app.write_download_log, text)
+                    self.buffer = lines[-1]
+                old_stderr.write(s)
+            def flush(self):
+                old_stderr.flush()
+                
+        sys.stderr = TqdmCapture(self)
+        
         try:
             snapshot_download(repo_id=repo_id, local_dir=target_dir)
             self.call_from_thread(self.write_download_log, f"[bold green]Download completed![/] Saved to {target_dir}")
+            try:
+                self.call_from_thread(self.query_one("#pb_download", ProgressBar).update, progress=100)
+            except Exception:
+                pass
             
             # Update data table local status immediately
             self.call_from_thread(self.refresh_models)
             self.call_from_thread(self.refresh_model_list)
         except Exception as e:
             self.call_from_thread(self.write_download_log, f"[bold red]Download failed:[/] {e}")
+        finally:
+            sys.stderr = old_stderr
 
     def refresh_models(self):
         try:
