@@ -132,19 +132,36 @@ class PistakApp(App):
 
     /* Model List Styling */
     .model-row {
-        height: auto;
-        padding: 1 2;
+        height: 4;
+        padding: 0 1;
+        margin-bottom: 1;
+        border-bottom: solid $primary-background;
+    }
+    
+    .model-info-col {
+        width: 1fr;
+        height: 100%;
+    }
+    
+    .model-btn-col {
+        width: 20;
+        height: 100%;
+        align: right middle;
     }
     
     .model-row Button {
-        margin-top: 1;
-        margin-bottom: 1;
+        margin: 0;
+        min-width: 16;
     }
     
     .model-title {
         text-style: bold;
         color: $success;
         margin-top: 1;
+    }
+    
+    .model-subtitle {
+        color: $text-muted;
     }
     
     /* Radio Button Fix */
