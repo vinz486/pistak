@@ -100,9 +100,19 @@ MODEL_CATALOG = [
     }
 ]
 
-class ModelRow(Container):
+class ModelRow(Vertical):
+    DEFAULT_CSS = """
+    ModelRow {
+        height: auto;
+        padding: 1 2;
+    }
+    ModelRow Button {
+        margin-top: 1;
+        margin-bottom: 1;
+    }
+    """
     def __init__(self, model_info, is_downloaded, **kwargs):
-        super().__init__(classes="model-row", **kwargs)
+        super().__init__(**kwargs)
         self.model_info = model_info
         self.is_downloaded = is_downloaded
 
