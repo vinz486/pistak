@@ -31,6 +31,7 @@ pyinstaller \
             --collect-all "textual" \
             --collect-all "openvino" \
             --collect-all "openvino_genai" \
+            --collect-all "openvino_tokenizers" \
             --hidden-import "server" \
             --hidden-import "uvicorn" \
             --hidden-import "fastapi" \

@@ -408,12 +408,17 @@ class PistakApp(App):
             ]
         
         try:
+            import os
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
+            
             self.server_process = subprocess.Popen(
                 cmd, 
                 stdout=subprocess.PIPE, 
                 stderr=subprocess.STDOUT,
                 text=True,
-                bufsize=1
+                bufsize=1,
+                env=env
             )
             self.server_running = True
             btn.label = "Stop Server"
