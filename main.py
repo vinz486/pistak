@@ -49,10 +49,11 @@ sudo usermod -aG render $USER
 **Step 2: Install Intel NPU Drivers**
 Ubuntu does not pre-install the Intel Level Zero NPU drivers. You can install them by running:
 ```bash
-cd /tmp
+mkdir -p /tmp/npu_driver
+cd /tmp/npu_driver
 wget https://github.com/intel/linux-npu-driver/releases/download/v1.33.0/linux-npu-driver-v1.33.0.20260529-26625960453-ubuntu2404.tar.gz
 tar -xzf linux-npu-driver-*.tar.gz
-sudo apt install -y ./ubuntu2404/*.deb
+sudo apt install -y ./*.deb
 ```
 
 ## 2. Performance Tips
