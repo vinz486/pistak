@@ -101,7 +101,7 @@ class HardwareEvaluator:
             
         return score, tier
 
-    def rate_and_sort_models(self, hw):
+    def rate_and_sort_models(self, hw, selected_device=None):
         ram = hw["ram_gb"]
         devices = hw["ov_devices"]
         
@@ -121,6 +121,10 @@ class HardwareEvaluator:
                 elif "1.5B" in m["params"]:
                     # Small models
                     stars = 3
+                    
+            sort_score = stars
+            if stars > 0 and selected_device and selected_device in m["best_for"]:
+                sort_score += 2  # Boost to top if it perfectly matches the selected device
             
             m["stars_num"] = stars
             if stars > 0:
@@ -128,6 +132,6 @@ class HardwareEvaluator:
             else:
                 m["stars_str"] = "❌ Incompatible"
                 
-        # Sort models: highest stars first, then by intelligence (params) descending
-        self.catalog.sort(key=lambda x: (x["stars_num"], x["ram_gb"]), reverse=True)
+        # Sort models: highest sort_score first, then by intelligence (params) descending
+        self.catalog.sort(key=lambda x: (x.get("sort_score", x["stars_num"]), x["ram_gb"]), reverse=True)
         return self.catalog

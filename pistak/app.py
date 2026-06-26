@@ -298,7 +298,8 @@ class PistakApp(App):
                 
             downloaded_models = [m[0] for m in self.config_manager.get_local_models()]
             hw = self.hardware_evaluator.get_hardware_info()
-            catalog = self.hardware_evaluator.rate_and_sort_models(hw)
+            selected_dev = self.settings.get("device", "CPU")
+            catalog = self.hardware_evaluator.rate_and_sort_models(hw, selected_device=selected_dev)
             
             for m in catalog:
                 model_dir_name = m["id"].split("/")[-1]
@@ -322,6 +323,7 @@ class PistakApp(App):
     def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
         if event.radio_set.id == "radio_device":
             self.settings["device"] = str(event.pressed.label)
+            self.refresh_model_list()
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "select_model":
