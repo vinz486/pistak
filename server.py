@@ -69,19 +69,25 @@ async def chat_completions(request: Request):
         async def generate_stream():
             # A real streaming implementation requires an ov_genai.Streamer callback.
             # For simplicity in this demo, we generate fully and then yield.
+            start_time = time.time()
             result = pipeline.generate(prompt, config)
+            duration = time.time() - start_time
             # Estimate tokens safely without needing tokenizer
             in_tokens = int(len(prompt) / 4)
             out_tokens = int(len(result) / 4)
-            print(f"[METRICS] TOKENS_IN:{in_tokens} TOKENS_OUT:{out_tokens}", flush=True)
+            tps = out_tokens / duration if duration > 0 else 0.0
+            print(f"[METRICS] TOKENS_IN:{in_tokens} TOKENS_OUT:{out_tokens} TPS:{tps:.2f}", flush=True)
             yield f"data: {json.dumps({'choices': [{'delta': {'content': result}}]})}\n\n"
             yield "data: [DONE]\n\n"
         return StreamingResponse(generate_stream(), media_type="text/event-stream")
     else:
+        start_time = time.time()
         result = pipeline.generate(prompt, config)
+        duration = time.time() - start_time
         in_tokens = int(len(prompt) / 4)
         out_tokens = int(len(result) / 4)
-        print(f"[METRICS] TOKENS_IN:{in_tokens} TOKENS_OUT:{out_tokens}", flush=True)
+        tps = out_tokens / duration if duration > 0 else 0.0
+        print(f"[METRICS] TOKENS_IN:{in_tokens} TOKENS_OUT:{out_tokens} TPS:{tps:.2f}", flush=True)
         return {
             "id": "chatcmpl-123",
             "object": "chat.completion",

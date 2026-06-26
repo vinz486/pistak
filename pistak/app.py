@@ -297,6 +297,8 @@ class PistakApp(App):
                             yield Label("Offline", id="lbl_stat_device", classes="stat-value")
                             yield Label("Tokens Processed (Session):", classes="stat-label")
                             yield Label("In: 0  |  Out: 0", id="lbl_stat_tokens", classes="stat-value")
+                            yield Label("Generation Speed:", classes="stat-label")
+                            yield Label("0.00 TPS", id="lbl_stat_tps", classes="stat-value")
                             
                     with TabPane("🆘 Help", id="tab-help"):
                         yield Markdown(HELP_MD)
@@ -462,12 +464,12 @@ class PistakApp(App):
             btn.variant = "error"
             lbl.update("  Status: [bold yellow]Starting (Loading Model...)[/]")
             
-            # Update Statistics Tab
             try:
                 self.total_tokens_in = 0
                 self.total_tokens_out = 0
                 self.query_one("#lbl_stat_device", Label).update(f"[bold blue]{device}[/]")
                 self.query_one("#lbl_stat_tokens", Label).update("In: 0  |  Out: 0")
+                self.query_one("#lbl_stat_tps", Label).update("0.00 TPS")
             except Exception:
                 pass
             
@@ -519,11 +521,18 @@ class PistakApp(App):
                 import re
                 m_in = re.search(r"TOKENS_IN:(\d+)", text)
                 m_out = re.search(r"TOKENS_OUT:(\d+)", text)
+                m_tps = re.search(r"TPS:([0-9\.]+)", text)
+                
                 if m_in and m_out:
                     self.total_tokens_in += int(m_in.group(1))
                     self.total_tokens_out += int(m_out.group(1))
                     lbl_tok = self.query_one("#lbl_stat_tokens", Label)
                     lbl_tok.update(f"In: [bold]{self.total_tokens_in}[/bold]  |  Out: [bold]{self.total_tokens_out}[/bold]")
+                    
+                if m_tps:
+                    lbl_tps = self.query_one("#lbl_stat_tps", Label)
+                    lbl_tps.update(f"[bold yellow]{m_tps.group(1)}[/bold yellow] TPS")
+                    
                 return
                 
             log = self.query_one("#log_server", RichLog)
