@@ -9,7 +9,7 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
-from textual.widgets import Header, Footer, Button, Select, Input, Label, RichLog, TabbedContent, TabPane, ProgressBar
+from textual.widgets import Header, Footer, Button, Select, Input, Label, RichLog, TabbedContent, TabPane, ProgressBar, RadioSet, RadioButton
 from textual.reactive import reactive
 from textual import work
 
@@ -195,6 +195,13 @@ class PistakApp(App):
         width: 100%;
         margin-top: 1;
     }
+    
+    /* Radio Button Fix */
+    RadioSet {
+        border: none;
+        background: transparent;
+        margin-bottom: 1;
+    }
     """
 
     BINDINGS = [
@@ -236,8 +243,6 @@ class PistakApp(App):
 
     def get_hardware_info(self):
         ram_gb = psutil.virtual_memory().total / (1024**3)
-        devices = ["CPU", "GPU", "NPU"] # Force default choices so they are always selectable in PyInstaller
-        
         ov_devices = ["CPU"]
         if ov:
             try:
@@ -260,7 +265,7 @@ class PistakApp(App):
         return {
             "ram_gb": ram_gb,
             "ov_devices": ov_devices,
-            "ui_devices": sorted(list(set(devices + ov_devices))), # Merge for the dropdown
+            "ui_devices": sorted(list(set(ov_devices))), # Only show what OpenVINO detects dynamically
             "cpu_name": cpu_name,
             "os_name": f"{platform.system()} {platform.release()}"
         }
@@ -332,15 +337,10 @@ class PistakApp(App):
                 yield Label("⚙️ Configuration", classes="section-title")
                 
                 yield Label("Target Device", classes="setting-item")
-                # Populate available OpenVINO devices + NPU/GPU fallbacks
-                device_options = [(d, d) for d in hw["ui_devices"]]
-                
-                device_select = Select(
-                    device_options,
-                    value=self.settings["device"] if self.settings["device"] in hw["ui_devices"] else "CPU",
-                    id="select_device"
-                )
-                yield device_select
+                # Dynamically populate using RadioButtons based on detected hardware
+                with RadioSet(id="radio_device"):
+                    for d in hw["ui_devices"]:
+                        yield RadioButton(d, value=(d == self.settings.get("device", "CPU")))
                 
                 yield Label("Local Model", classes="setting-item")
                 models = self.get_local_models()
@@ -437,10 +437,12 @@ class PistakApp(App):
         except Exception:
             pass
 
+    def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
+        if event.radio_set.id == "radio_device":
+            self.settings["device"] = str(event.pressed.label)
+
     def on_select_changed(self, event: Select.Changed) -> None:
-        if event.select.id == "select_device":
-            self.settings["device"] = event.value
-        elif event.select.id == "select_model":
+        if event.select.id == "select_model":
             self.settings["model_path"] = event.value
 
     def on_input_changed(self, event: Input.Changed) -> None:
