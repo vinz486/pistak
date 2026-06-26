@@ -114,8 +114,15 @@ class PistakApp(App):
 
     .stat-label {
         text-align: center;
-        padding: 1;
+        padding: 1 0 0 0;
         text-style: bold;
+    }
+    
+    .stat-value {
+        text-align: center;
+        color: $success;
+        text-style: bold;
+        margin-bottom: 1;
     }
 
     .hw-info {
@@ -183,6 +190,9 @@ class PistakApp(App):
     server_running = reactive(False)
     cpu_percent = reactive(0.0)
     ram_percent = reactive(0.0)
+    
+    total_tokens_in = 0
+    total_tokens_out = 0
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -282,6 +292,11 @@ class PistakApp(App):
                             yield ProgressBar(id="pb_cpu", total=100, show_eta=False)
                             yield Label("RAM Usage:", classes="stat-label")
                             yield ProgressBar(id="pb_ram", total=100, show_eta=False)
+                            
+                            yield Label("Active Accelerator:", classes="stat-label")
+                            yield Label("Offline", id="lbl_stat_device", classes="stat-value")
+                            yield Label("Tokens Processed (Session):", classes="stat-label")
+                            yield Label("In: 0  |  Out: 0", id="lbl_stat_tokens", classes="stat-value")
                             
                     with TabPane("🆘 Help", id="tab-help"):
                         yield Markdown(HELP_MD)
@@ -447,6 +462,15 @@ class PistakApp(App):
             btn.variant = "error"
             lbl.update("  Status: [bold yellow]Starting (Loading Model...)[/]")
             
+            # Update Statistics Tab
+            try:
+                self.total_tokens_in = 0
+                self.total_tokens_out = 0
+                self.query_one("#lbl_stat_device", Label).update(f"[bold blue]{device}[/]")
+                self.query_one("#lbl_stat_tokens", Label).update("In: 0  |  Out: 0")
+            except Exception:
+                pass
+            
             # Start a thread to read logs
             threading.Thread(target=self.read_server_logs, daemon=True).start()
             
@@ -473,6 +497,11 @@ class PistakApp(App):
             btn.variant = "success"
             lbl.update("  Status: [bold red]Stopped[/]")
             log.write("[bold red]Server stopped.[/]")
+            
+            try:
+                self.query_one("#lbl_stat_device", Label).update("Offline")
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -486,6 +515,17 @@ class PistakApp(App):
 
     def write_server_log(self, text: str):
         try:
+            if "[METRICS]" in text:
+                import re
+                m_in = re.search(r"TOKENS_IN:(\d+)", text)
+                m_out = re.search(r"TOKENS_OUT:(\d+)", text)
+                if m_in and m_out:
+                    self.total_tokens_in += int(m_in.group(1))
+                    self.total_tokens_out += int(m_out.group(1))
+                    lbl_tok = self.query_one("#lbl_stat_tokens", Label)
+                    lbl_tok.update(f"In: [bold]{self.total_tokens_in}[/bold]  |  Out: [bold]{self.total_tokens_out}[/bold]")
+                return
+                
             log = self.query_one("#log_server", RichLog)
             log.write(text)
             

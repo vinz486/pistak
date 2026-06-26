@@ -69,13 +69,19 @@ async def chat_completions(request: Request):
         async def generate_stream():
             # A real streaming implementation requires an ov_genai.Streamer callback.
             # For simplicity in this demo, we generate fully and then yield.
-            # In a production app, use the openvino_genai streamer.
             result = pipeline.generate(prompt, config)
+            # Estimate tokens safely without needing tokenizer
+            in_tokens = int(len(prompt) / 4)
+            out_tokens = int(len(result) / 4)
+            print(f"[METRICS] TOKENS_IN:{in_tokens} TOKENS_OUT:{out_tokens}", flush=True)
             yield f"data: {json.dumps({'choices': [{'delta': {'content': result}}]})}\n\n"
             yield "data: [DONE]\n\n"
         return StreamingResponse(generate_stream(), media_type="text/event-stream")
     else:
         result = pipeline.generate(prompt, config)
+        in_tokens = int(len(prompt) / 4)
+        out_tokens = int(len(result) / 4)
+        print(f"[METRICS] TOKENS_IN:{in_tokens} TOKENS_OUT:{out_tokens}", flush=True)
         return {
             "id": "chatcmpl-123",
             "object": "chat.completion",
