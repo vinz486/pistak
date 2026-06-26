@@ -26,7 +26,9 @@ async def load_model():
     try:
         # Load the pipeline
         # Using openvino_genai LLMPipeline
-        pipeline = ov_genai.LLMPipeline(args.model_path, args.device)
+        import os
+        os.makedirs("models/cache", exist_ok=True)
+        pipeline = ov_genai.LLMPipeline(args.model_path, args.device, CACHE_DIR="models/cache")
         print("Model loaded successfully!")
     except Exception as e:
         print(f"Error loading model: {e}")
