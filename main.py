@@ -8,11 +8,10 @@ import platform
 from pathlib import Path
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Header, Footer, Button, Select, Input, Label, RichLog, TabbedContent, TabPane, ProgressBar, DataTable
+from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.widgets import Header, Footer, Button, Select, Input, Label, RichLog, TabbedContent, TabPane, ProgressBar
 from textual.reactive import reactive
 from textual import work
-from textual.worker import get_current_worker
 
 try:
     from huggingface_hub import snapshot_download
@@ -72,6 +71,32 @@ MODEL_CATALOG = [
     }
 ]
 
+class ModelRow(Container):
+    def __init__(self, model_info, is_downloaded, **kwargs):
+        super().__init__(**kwargs)
+        self.model_info = model_info
+        self.is_downloaded = is_downloaded
+
+    def compose(self) -> ComposeResult:
+        with Horizontal(classes="model-row"):
+            with Vertical(classes="model-details"):
+                yield Label(f"[bold]{self.model_info['name']}[/bold] ({self.model_info['params']})", classes="model-title")
+                yield Label(f"🖥️ Min RAM: {self.model_info['ram_gb']}GB  |  ⚡ Best for: {', '.join(self.model_info['best_for'])}")
+                yield Label(f"📊 Rating: {self.model_info['stars_str']}")
+            
+            with Vertical(classes="model-actions"):
+                safe_id = self.model_info['id'].replace('/', '___')
+                if self.is_downloaded:
+                    yield Label("✅ Downloaded", style="bold green")
+                    yield Button("Select Model", id=f"btn_start_{safe_id}", variant="success")
+                else:
+                    yield Label("☁️ Cloud", style="bold blue")
+                    btn = Button("Download", id=f"btn_dl_{safe_id}", variant="primary")
+                    if "Incompatible" in self.model_info['stars_str']:
+                        btn.disabled = True
+                    yield btn
+
+
 class PistakApp(App):
     CSS = """
     Screen {
@@ -127,13 +152,6 @@ class PistakApp(App):
         text-style: bold;
     }
 
-    DataTable {
-        height: auto;
-        margin-top: 1;
-        margin-bottom: 2;
-        border: solid $accent;
-    }
-
     .hw-info {
         padding: 1;
         margin-bottom: 1;
@@ -147,6 +165,35 @@ class PistakApp(App):
         background: $primary-background;
         border: solid $success;
         text-style: bold;
+    }
+
+    /* Model List Styling */
+    .model-row {
+        height: auto;
+        padding: 1 2;
+        margin-bottom: 1;
+        background: $boost;
+        border: solid $accent;
+    }
+    
+    .model-details {
+        width: 1fr;
+    }
+    
+    .model-title {
+        text-style: bold;
+        color: $success;
+        margin-bottom: 1;
+    }
+
+    .model-actions {
+        width: 25;
+        align: center middle;
+    }
+    
+    .model-actions Button {
+        width: 100%;
+        margin-top: 1;
     }
     """
 
@@ -189,11 +236,13 @@ class PistakApp(App):
 
     def get_hardware_info(self):
         ram_gb = psutil.virtual_memory().total / (1024**3)
-        devices = ["CPU"]
+        devices = ["CPU", "GPU", "NPU"] # Force default choices so they are always selectable in PyInstaller
+        
+        ov_devices = ["CPU"]
         if ov:
             try:
                 core = ov.Core()
-                devices = core.available_devices
+                ov_devices = core.available_devices
             except Exception:
                 pass
                 
@@ -210,7 +259,8 @@ class PistakApp(App):
 
         return {
             "ram_gb": ram_gb,
-            "ov_devices": devices,
+            "ov_devices": ov_devices,
+            "ui_devices": sorted(list(set(devices + ov_devices))), # Merge for the dropdown
             "cpu_name": cpu_name,
             "os_name": f"{platform.system()} {platform.release()}"
         }
@@ -271,7 +321,6 @@ class PistakApp(App):
     def compose(self) -> ComposeResult:
         self.load_settings()
         hw = self.get_hardware_info()
-        available_devices = hw["ov_devices"]
         hw_score, hw_tier = self.evaluate_hardware(hw)
         self.rate_and_sort_models(hw)
         
@@ -283,15 +332,12 @@ class PistakApp(App):
                 yield Label("⚙️ Configuration", classes="section-title")
                 
                 yield Label("Target Device", classes="setting-item")
-                # Dynamically populate available OpenVINO devices
-                device_options = [(d, d) for d in available_devices]
-                # Fallback to config if not available right now
-                if self.settings["device"] not in available_devices:
-                    device_options.append((self.settings["device"], self.settings["device"]))
+                # Populate available OpenVINO devices + NPU/GPU fallbacks
+                device_options = [(d, d) for d in hw["ui_devices"]]
                 
                 device_select = Select(
                     device_options,
-                    value=self.settings["device"],
+                    value=self.settings["device"] if self.settings["device"] in hw["ui_devices"] else "CPU",
                     id="select_device"
                 )
                 yield device_select
@@ -323,7 +369,7 @@ class PistakApp(App):
                         
                         # Compact hardware display
                         yield Label(f"🖥️ [bold]CPU:[/bold] {hw['cpu_name']}  |  🐏 [bold]RAM:[/bold] {hw['ram_gb']:.1f} GB  |  💽 [bold]OS:[/bold] {hw['os_name']}", classes="hw-info")
-                        yield Label(f"⚡ [bold]OpenVINO Accelerators:[/bold] {', '.join(available_devices)}", classes="hw-info")
+                        yield Label(f"⚡ [bold]OpenVINO Accelerators:[/bold] {', '.join(hw['ov_devices'])}", classes="hw-info")
                         
                         yield Label("\n[bold]Accelerator Usage Guide:[/bold]")
                         yield Label("• [bold green]NPU[/bold green]: Perfect for models up to 4B parameters. High battery efficiency, ideal for background tasks.")
@@ -332,14 +378,12 @@ class PistakApp(App):
 
                     with TabPane("📥 Models", id="tab-models"):
                         yield Label("Suggested Models Ranked for Your PC", classes="section-title")
-                        yield Label("💡 [italic]Click a row! If the model is downloaded, you'll be taken to the Server tab to start it. Otherwise, you can download it.[/italic]", classes="setting-item")
+                        yield Label("💡 [italic]Click Download to fetch a model. If already downloaded, click Select Model.[/italic]", classes="setting-item")
                         
-                        yield DataTable(id="models_table")
-                        
-                        yield Horizontal(
-                            Input(placeholder="Select a model from the table to download or paste Repo ID...", id="input_hf_repo"),
-                            Button("Download", id="btn_download", variant="primary")
-                        )
+                        with VerticalScroll(id="models_list_container"):
+                            # Populated in on_mount
+                            pass
+                            
                         yield RichLog(id="log_download")
 
                     with TabPane("🚀 Server", id="tab-server"):
@@ -360,66 +404,26 @@ class PistakApp(App):
         yield Footer()
 
     def on_mount(self):
-        # Populate the dynamic hardware table
-        hw = self.get_hardware_info()
-        table = self.query_one("#models_table", DataTable)
-        table.cursor_type = "row"
-        table.add_columns("Model", "Intelligence", "Min RAM", "Best For", "Rating (Current HW)", "Local Status")
-        
-        downloaded_models = [m[0] for m in self.get_local_models()]
-        
-        for m in MODEL_CATALOG:
-            model_dir_name = m["id"].split("/")[-1]
-            local_status = "✅ Downloaded" if model_dir_name in downloaded_models else "☁️ Cloud"
-            
-            table.add_row(
-                m["name"], 
-                m["params"], 
-                f"{m['ram_gb']} GB", 
-                ", ".join(m["best_for"]),
-                m["stars_str"],
-                local_status,
-                key=m["id"]
-            )
-
+        self.refresh_model_list()
         self.update_timer = self.set_interval(1.0, self.update_stats)
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        repo_id = event.row_key.value
-        if not repo_id:
-            return
-            
-        model_name = repo_id.split("/")[-1]
-        local_path = os.path.join(MODELS_DIR, model_name)
-        
-        if os.path.exists(local_path):
-            # Already downloaded! Select it and switch to server tab
-            self.settings["model_path"] = local_path
-            
-            # Try to automatically update sidebar select
-            try:
-                model_select = self.query_one("#select_model", Select)
-                if local_path in [m[1] for m in self.get_local_models()]:
-                    model_select.value = local_path
-            except Exception:
-                pass
+    def refresh_model_list(self):
+        try:
+            container = self.query_one("#models_list_container")
+            # Clear existing children
+            for child in container.children:
+                child.remove()
                 
-            # Switch to Server tab
-            try:
-                tabs = self.query_one(TabbedContent)
-                tabs.active = "tab-server"
-                self.notify(f"Selected {model_name}. Click 'Start Server' to run it!", title="Ready to Run")
-            except Exception:
-                pass
-                
-        else:
-            # Not downloaded, prep for download
-            try:
-                inp = self.query_one("#input_hf_repo", Input)
-                inp.value = repo_id
-                self.notify(f"{model_name} needs to be downloaded. Click 'Download' below.", severity="warning")
-            except Exception:
-                pass
+            downloaded_models = [m[0] for m in self.get_local_models()]
+            hw = self.get_hardware_info()
+            self.rate_and_sort_models(hw)
+            
+            for m in MODEL_CATALOG:
+                model_dir_name = m["id"].split("/")[-1]
+                is_downloaded = model_dir_name in downloaded_models
+                container.mount(ModelRow(m, is_downloaded))
+        except Exception as e:
+            pass
 
     def update_stats(self):
         self.cpu_percent = psutil.cpu_percent()
@@ -451,10 +455,31 @@ class PistakApp(App):
         elif event.button.id == "btn_toggle_server":
             self.action_toggle_server()
             
-        elif event.button.id == "btn_download":
-            repo_id = self.query_one("#input_hf_repo", Input).value
-            if repo_id:
-                self.download_model(repo_id)
+        elif event.button.id and event.button.id.startswith("btn_start_"):
+            # Handle selecting a downloaded model
+            repo_id = event.button.id.replace("btn_start_", "").replace("___", "/")
+            model_name = repo_id.split("/")[-1]
+            local_path = os.path.join(MODELS_DIR, model_name)
+            
+            self.settings["model_path"] = local_path
+            try:
+                model_select = self.query_one("#select_model", Select)
+                if local_path in [m[1] for m in self.get_local_models()]:
+                    model_select.value = local_path
+            except Exception:
+                pass
+                
+            try:
+                tabs = self.query_one(TabbedContent)
+                tabs.active = "tab-server"
+                self.notify(f"Selected {model_name}. Click 'Start Server' to run it!", title="Ready to Run")
+            except Exception:
+                pass
+                
+        elif event.button.id and event.button.id.startswith("btn_dl_"):
+            # Handle download button
+            repo_id = event.button.id.replace("btn_dl_", "").replace("___", "/")
+            self.download_model(repo_id)
 
     def action_toggle_server(self) -> None:
         if self.server_running:
@@ -567,42 +592,12 @@ class PistakApp(App):
         try:
             snapshot_download(repo_id=repo_id, local_dir=target_dir)
             self.call_from_thread(self.write_download_log, f"[bold green]Download completed![/] Saved to {target_dir}")
-            self.call_from_thread(self.refresh_models)
             
             # Update data table local status immediately
-            self.call_from_thread(self.refresh_table_status)
+            self.call_from_thread(self.refresh_models)
+            self.call_from_thread(self.refresh_model_list)
         except Exception as e:
             self.call_from_thread(self.write_download_log, f"[bold red]Download failed:[/] {e}")
-
-    def refresh_table_status(self):
-        try:
-            table = self.query_one("#models_table", DataTable)
-            table.clear()
-            hw = self.get_hardware_info()
-            self.rate_and_sort_models(hw)
-            downloaded_models = [m[0] for m in self.get_local_models()]
-            
-            for m in MODEL_CATALOG:
-                model_dir_name = m["id"].split("/")[-1]
-                local_status = "✅ Downloaded" if model_dir_name in downloaded_models else "☁️ Cloud"
-                table.add_row(
-                    m["name"], 
-                    m["params"], 
-                    f"{m['ram_gb']} GB", 
-                    ", ".join(m["best_for"]),
-                    m["stars_str"],
-                    local_status,
-                    key=m["id"]
-                )
-        except Exception:
-            pass
-
-    def write_download_log(self, text: str):
-        try:
-            log = self.query_one("#log_download", RichLog)
-            log.write(text)
-        except Exception:
-            pass
 
     def refresh_models(self):
         try:
