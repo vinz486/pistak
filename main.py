@@ -96,6 +96,7 @@ class PistakApp(App):
     }
     
     .setting-item {
+        margin-top: 1;
         margin-bottom: 1;
     }
     
@@ -150,8 +151,8 @@ class PistakApp(App):
     """
 
     BINDINGS = [
-        ("q", "quit", "Esci"),
-        ("s", "toggle_server", "Avvia/Ferma Server")
+        ("q", "quit", "Quit"),
+        ("s", "toggle_server", "Start/Stop Server")
     ]
 
     # App State
@@ -227,13 +228,13 @@ class PistakApp(App):
         if "GPU" in devices: score += 2
         
         if score >= 8:
-            tier = "Super PC AI 🚀 (Prestazioni Top)"
+            tier = "Super PC AI 🚀 (Top Performance)"
         elif score >= 5:
-            tier = "Ottimo PC ⚡ (Eccellente per modelli medi e NPU)"
+            tier = "Great PC ⚡ (Excellent for medium models & NPU)"
         elif score >= 3:
-            tier = "PC Discreto 💻 (Buono per modelli leggeri)"
+            tier = "Decent PC 💻 (Good for lightweight models)"
         else:
-            tier = "Ciofeca 🐢 (Farà fatica con l'AI)"
+            tier = "Potato PC 🐢 (Will struggle with AI)"
             
         return score, tier
 
@@ -262,7 +263,7 @@ class PistakApp(App):
             if stars > 0:
                 m["stars_str"] = "⭐" * stars + "☆" * (5 - stars)
             else:
-                m["stars_str"] = "❌ Non fattibile"
+                m["stars_str"] = "❌ Incompatible"
                 
         # Sort models: highest stars first, then by intelligence (params) descending
         MODEL_CATALOG.sort(key=lambda x: (x["stars_num"], x["ram_gb"]), reverse=True)
@@ -279,9 +280,9 @@ class PistakApp(App):
         with Horizontal():
             # Sidebar for settings
             with Vertical(id="sidebar"):
-                yield Label("⚙️ Configurazione", classes="section-title")
+                yield Label("⚙️ Configuration", classes="section-title")
                 
-                yield Label("Dispositivo di Calcolo", classes="setting-item")
+                yield Label("Target Device", classes="setting-item")
                 # Dynamically populate available OpenVINO devices
                 device_options = [(d, d) for d in available_devices]
                 # Fallback to config if not available right now
@@ -295,7 +296,7 @@ class PistakApp(App):
                 )
                 yield device_select
                 
-                yield Label("Modello Locale", classes="setting-item")
+                yield Label("Local Model", classes="setting-item")
                 models = self.get_local_models()
                 model_value = self.settings["model_path"] if any(m[1] == self.settings["model_path"] for m in models) else None
                 if model_value is None:
@@ -306,54 +307,54 @@ class PistakApp(App):
                     model_select.disabled = True
                 yield model_select
                 
-                yield Label("Porta Server", classes="setting-item")
+                yield Label("Server Port", classes="setting-item")
                 yield Input(value=self.settings["port"], id="input_port")
                 
-                yield Button("Salva Configurazione", id="btn_save", variant="primary")
+                yield Button("Save Configuration", id="btn_save", variant="primary")
 
             # Main content area
             with Container(id="main-content"):
                 with TabbedContent(initial="tab-hw"):
                     
                     with TabPane("💻 Hardware", id="tab-hw"):
-                        yield Label("Analisi Hardware", classes="section-title")
+                        yield Label("Hardware Analysis", classes="section-title")
                         
-                        yield Label(f"Valutazione: {hw_tier} (Voto: {hw_score}/10)", classes="hw-score")
+                        yield Label(f"Rating: {hw_tier} (Score: {hw_score}/10)", classes="hw-score")
                         
-                        yield Label(f"[bold]Processore (CPU):[/bold] {hw['cpu_name']}", classes="hw-info")
-                        yield Label(f"[bold]Memoria RAM Totale:[/bold] {hw['ram_gb']:.1f} GB", classes="hw-info")
-                        yield Label(f"[bold]Sistema Operativo:[/bold] {hw['os_name']}", classes="hw-info")
-                        yield Label(f"[bold]Acceleratori OpenVINO:[/bold] {', '.join(available_devices)}", classes="hw-info")
+                        yield Label(f"[bold]Processor (CPU):[/bold] {hw['cpu_name']}", classes="hw-info")
+                        yield Label(f"[bold]Total RAM Installed:[/bold] {hw['ram_gb']:.1f} GB", classes="hw-info")
+                        yield Label(f"[bold]Operating System:[/bold] {hw['os_name']}", classes="hw-info")
+                        yield Label(f"[bold]OpenVINO Accelerators:[/bold] {', '.join(available_devices)}", classes="hw-info")
                         
-                        yield Label("\n[bold]Guida all'uso degli acceleratori:[/bold]")
-                        yield Label("• [bold green]NPU[/bold green]: Perfetta per modelli fino a 4B parametri. Bassissimo consumo di batteria, ideale in background.")
-                        yield Label("• [bold blue]GPU[/bold blue]: Altissime prestazioni, ottima per modelli 7B-8B se hai almeno 16GB di RAM.")
-                        yield Label("• [bold magenta]CPU[/bold magenta]: Soluzione di ripiego, universale ma tendenzialmente più lenta.")
+                        yield Label("\n[bold]Accelerator Usage Guide:[/bold]")
+                        yield Label("• [bold green]NPU[/bold green]: Perfect for models up to 4B parameters. High battery efficiency, ideal for background tasks.")
+                        yield Label("• [bold blue]GPU[/bold blue]: Highest performance, excellent for 7B-8B models if you have at least 16GB RAM.")
+                        yield Label("• [bold magenta]CPU[/bold magenta]: Fallback option, universal but generally slower.")
 
                     with TabPane("🚀 Server", id="tab-server"):
-                        yield Label("Controllo Server OpenAI Compatibile", classes="section-title")
+                        yield Label("OpenAI Compatible Server Control", classes="section-title")
                         with Horizontal(classes="setting-item"):
-                            yield Button("Avvia Server", id="btn_toggle_server", variant="success")
-                            yield Label("  Stato: Fermo", id="lbl_server_status")
+                            yield Button("Start Server", id="btn_toggle_server", variant="success")
+                            yield Label("  Status: Stopped", id="lbl_server_status")
                         yield RichLog(id="log_server", highlight=True, markup=True)
                         
-                    with TabPane("📥 Modelli", id="tab-models"):
-                        yield Label("Modelli Suggeriti ed Ordinati per il tuo PC", classes="section-title")
+                    with TabPane("📥 Models", id="tab-models"):
+                        yield Label("Suggested Models Ranked for Your PC", classes="section-title")
                         
                         yield DataTable(id="models_table")
                         
                         yield Horizontal(
-                            Input(placeholder="Seleziona un modello dalla tabella o scrivi il Repo ID...", id="input_hf_repo"),
-                            Button("Scarica", id="btn_download", variant="primary")
+                            Input(placeholder="Select a model from the table or paste Repo ID...", id="input_hf_repo"),
+                            Button("Download", id="btn_download", variant="primary")
                         )
                         yield RichLog(id="log_download")
                         
-                    with TabPane("📊 Statistiche", id="tab-stats"):
+                    with TabPane("📊 Statistics", id="tab-stats"):
                         with Vertical(id="stat-container"):
-                            yield Label("Monitoraggio del Carico di Sistema", classes="section-title")
-                            yield Label("Utilizzo CPU:", classes="stat-label")
+                            yield Label("System Load Monitoring", classes="section-title")
+                            yield Label("CPU Usage:", classes="stat-label")
                             yield ProgressBar(id="pb_cpu", total=100, show_eta=False)
-                            yield Label("Utilizzo RAM:", classes="stat-label")
+                            yield Label("RAM Usage:", classes="stat-label")
                             yield ProgressBar(id="pb_ram", total=100, show_eta=False)
 
         yield Footer()
@@ -363,7 +364,7 @@ class PistakApp(App):
         hw = self.get_hardware_info()
         table = self.query_one("#models_table", DataTable)
         table.cursor_type = "row"
-        table.add_columns("Modello", "Intelligenza", "Min RAM", "Voto (Hardware Attuale)")
+        table.add_columns("Model", "Intelligence", "Min RAM", "Rating (Current HW)")
         
         for m in MODEL_CATALOG:
             table.add_row(
@@ -381,7 +382,7 @@ class PistakApp(App):
         if repo_id:
             inp = self.query_one("#input_hf_repo", Input)
             inp.value = repo_id
-            self.notify(f"Selezionato {repo_id}. Clicca Scarica quando sei pronto.")
+            self.notify(f"Selected {repo_id}. Click Download when ready.")
 
     def update_stats(self):
         self.cpu_percent = psutil.cpu_percent()
@@ -408,7 +409,7 @@ class PistakApp(App):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn_save":
             self.save_settings()
-            self.notify("Configurazione salvata in background!")
+            self.notify("Configuration saved transparently!")
             
         elif event.button.id == "btn_toggle_server":
             self.action_toggle_server()
@@ -428,7 +429,7 @@ class PistakApp(App):
         self.save_settings()
         
         if not self.settings.get("model_path"):
-            self.notify("Per favore seleziona un modello prima di avviare!", severity="error")
+            self.notify("Please select a model first!", severity="error")
             return
             
         btn = self.query_one("#btn_toggle_server", Button)
@@ -439,9 +440,9 @@ class PistakApp(App):
         device = self.settings.get("device", "CPU")
         model = self.settings.get("model_path")
         
-        log.write(f"[bold green]Avviando il Server sulla porta {port}...[/]")
-        log.write(f"Modello: {model}")
-        log.write(f"Acceleratore: {device}")
+        log.write(f"[bold green]Starting Server on port {port}...[/]")
+        log.write(f"Model: {model}")
+        log.write(f"Accelerator: {device}")
         
         if getattr(sys, 'frozen', False):
             # If running as a PyInstaller executable
@@ -469,15 +470,15 @@ class PistakApp(App):
                 bufsize=1
             )
             self.server_running = True
-            btn.label = "Ferma Server"
+            btn.label = "Stop Server"
             btn.variant = "error"
-            lbl.update("  Stato: [bold green]In Esecuzione[/]")
+            lbl.update("  Status: [bold green]Running[/]")
             
             # Start a thread to read logs
             threading.Thread(target=self.read_server_logs, daemon=True).start()
             
         except Exception as e:
-            log.write(f"[bold red]Errore avvio server:[/] {e}")
+            log.write(f"[bold red]Server start error:[/] {e}")
 
     def stop_server(self):
         if self.server_process:
@@ -495,10 +496,10 @@ class PistakApp(App):
             lbl = self.query_one("#lbl_server_status", Label)
             log = self.query_one("#log_server", RichLog)
             
-            btn.label = "Avvia Server"
+            btn.label = "Start Server"
             btn.variant = "success"
-            lbl.update("  Stato: [bold red]Fermo[/]")
-            log.write("[bold red]Server arrestato.[/]")
+            lbl.update("  Status: [bold red]Stopped[/]")
+            log.write("[bold red]Server stopped.[/]")
         except Exception:
             pass
 
@@ -519,19 +520,19 @@ class PistakApp(App):
     @work(thread=True)
     def download_model(self, repo_id: str):
         if not snapshot_download:
-            self.call_from_thread(self.write_download_log, "[bold red]huggingface_hub non è installato.[/]")
+            self.call_from_thread(self.write_download_log, "[bold red]huggingface_hub is not installed.[/]")
             return
             
-        self.call_from_thread(self.write_download_log, f"Inizio download di: [bold]{repo_id}[/]")
+        self.call_from_thread(self.write_download_log, f"Starting download for: [bold]{repo_id}[/]")
         model_name = repo_id.split("/")[-1]
         target_dir = os.path.join(MODELS_DIR, model_name)
         
         try:
             snapshot_download(repo_id=repo_id, local_dir=target_dir)
-            self.call_from_thread(self.write_download_log, f"[bold green]Download completato![/] Salvato in {target_dir}")
+            self.call_from_thread(self.write_download_log, f"[bold green]Download completed![/] Saved to {target_dir}")
             self.call_from_thread(self.refresh_models)
         except Exception as e:
-            self.call_from_thread(self.write_download_log, f"[bold red]Download fallito:[/] {e}")
+            self.call_from_thread(self.write_download_log, f"[bold red]Download failed:[/] {e}")
 
     def write_download_log(self, text: str):
         try:
